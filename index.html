@@ -261,18 +261,16 @@
       <button id="pvFront" class="on">WARP</button>
       <button id="pvBack">WEFT</button>
       <button id="pvWoven">WOVEN</button>
-      <button id="pvField">FIELD</button>
       <button id="pvRemainder">GONE</button>
     </div>
     <div class="cloth" id="clothWrap">
       <canvas id="frontCanvas"></canvas>
       <canvas id="backCanvas" class="hidden"></canvas>
       <canvas id="wovenCanvas" class="hidden"></canvas>
-      <canvas id="fieldCanvas" class="hidden"></canvas>
       <canvas id="remainderCanvas" class="hidden"></canvas>
     </div>
     <div class="clothcap mono"><span id="pvCap">FACE — VERTICAL</span><span id="pvMeta">—</span></div>
-    <p class="note">FIELD — THE SAME ROW AND COLUMN AT FULL RESOLUTION, BLENDED WITHOUT THREADING. NO WEAVE IS POSSIBLE AT THIS VIEW; IT IS FOR LOOKING ONLY.<br>REMAINDER — THE ORIGINAL PHOTO, WITH ONLY THE USED ROW AND COLUMN LEFT VISIBLE. THIS VIEW ALSO EXISTS ONLY WHILE THE PHOTO IS LOADED.</p>
+    <p class="note">GONE — THE ORIGINAL PHOTO, WITH ONLY THE USED ROW AND COLUMN LEFT VISIBLE. THIS VIEW EXISTS ONLY WHILE THE PHOTO IS LOADED.</p>
   </div>
 </div>
 
@@ -403,8 +401,8 @@ function goOut(){ if(!state) return; renderOutput(); show('scOut'); }
 
 /* ---------- state ---------- */
 var srcCanvas=$('srcCanvas'), srcCtx=srcCanvas.getContext('2d',{willReadFrequently:true});
-var frontCanvas=$('frontCanvas'), backCanvas=$('backCanvas'), wovenCanvas=$('wovenCanvas'), fieldCanvas=$('fieldCanvas'), remainderCanvas=$('remainderCanvas');
-var fCtx=frontCanvas.getContext('2d'), bCtx=backCanvas.getContext('2d'), wCtx=wovenCanvas.getContext('2d'), gCtx=fieldCanvas.getContext('2d'), rCtx=remainderCanvas.getContext('2d');
+var frontCanvas=$('frontCanvas'), backCanvas=$('backCanvas'), wovenCanvas=$('wovenCanvas'), remainderCanvas=$('remainderCanvas');
+var fCtx=frontCanvas.getContext('2d'), bCtx=backCanvas.getContext('2d'), wCtx=wovenCanvas.getContext('2d'), rCtx=remainderCanvas.getContext('2d');
 var fullCanvas=document.createElement('canvas'), fullCtx=fullCanvas.getContext('2d',{willReadFrequently:true});
 var img=null, pt=null, orig=null, fileName='';
 var gps=null, gpsFrom='—', shotAt=null, precision=3;
@@ -418,7 +416,7 @@ $('tgMirror').addEventListener('click',function(){ mirror=!mirror; this.classLis
 $('tgSort').addEventListener('click',function(){ sortLum=!sortLum; this.classList.toggle('on',sortLum); render(); });
 
 var currentView='warp';
-var pvTabs=[['pvFront',frontCanvas,'FACE — VERTICAL','warp'],['pvBack',backCanvas,'BACK — HORIZONTAL','weft'],['pvWoven',wovenCanvas,'ESTIMATED CLOTH','woven'],['pvField',fieldCanvas,'FULL-RESOLUTION FIELD, UNTHREADED','field'],['pvRemainder',remainderCanvas,'EVERYTHING ELSE, GONE','remainder']];
+var pvTabs=[['pvFront',frontCanvas,'FACE — VERTICAL','warp'],['pvBack',backCanvas,'BACK — HORIZONTAL','weft'],['pvWoven',wovenCanvas,'ESTIMATED CLOTH','woven'],['pvRemainder',remainderCanvas,'EVERYTHING ELSE, GONE','remainder']];
 pvTabs.forEach(function(t){
   $(t[0]).addEventListener('click',function(){
     pvTabs.forEach(function(u){ $(u[0]).classList.remove('on'); u[1].classList.add('hidden'); });
@@ -690,33 +688,7 @@ function render(){
   $('pvMeta').textContent=nW+' × '+nF;
   state={pal:pal,warpIdx:wi,weftIdx:fi};
 
-  /* FIELD — same row/column, full resolution, no thinning into threads */
   var o=origPt();
-  var rrF=fullCtx.getImageData(0,o.y,orig.w,1).data, rowFull=[];
-  for(var iF=0;iF<orig.w;iF++) rowFull.push([rrF[iF*4],rrF[iF*4+1],rrF[iF*4+2]]);
-  var ccF=fullCtx.getImageData(o.x,0,1,orig.h).data, colFull=[];
-  for(var jF=0;jF<orig.h;jF++) colFull.push([ccF[jF*4],ccF[jF*4+1],ccF[jF*4+2]]);
-  var rowT=tr(rowFull), colT=tr(colFull);
-
-  var stripW=document.createElement('canvas'); stripW.width=rowT.length; stripW.height=1;
-  var swCtx=stripW.getContext('2d'), swData=swCtx.createImageData(rowT.length,1);
-  for(var si=0;si<rowT.length;si++){ swData.data[si*4]=rowT[si][0]; swData.data[si*4+1]=rowT[si][1]; swData.data[si*4+2]=rowT[si][2]; swData.data[si*4+3]=255; }
-  swCtx.putImageData(swData,0,0);
-
-  var stripH=document.createElement('canvas'); stripH.width=1; stripH.height=colT.length;
-  var shCtx=stripH.getContext('2d'), shData=shCtx.createImageData(1,colT.length);
-  for(var sj=0;sj<colT.length;sj++){ shData.data[sj*4]=colT[sj][0]; shData.data[sj*4+1]=colT[sj][1]; shData.data[sj*4+2]=colT[sj][2]; shData.data[sj*4+3]=255; }
-  shCtx.putImageData(shData,0,0);
-
-  fieldCanvas.width=W; fieldCanvas.height=H;
-  gCtx.imageSmoothingEnabled=true;
-  if(gCtx.imageSmoothingQuality) gCtx.imageSmoothingQuality='high';
-  gCtx.clearRect(0,0,W,H);
-  gCtx.globalAlpha=1;
-  gCtx.drawImage(stripW,0,0,rowT.length,1,0,0,W,H);
-  gCtx.globalAlpha=0.28;
-  gCtx.drawImage(stripH,0,0,1,colT.length,0,0,W,H);
-  gCtx.globalAlpha=1;
 
   /* REMAINDER — the actual photo, with only the used row+column visible; everything else is gone */
   var remW,remH;
@@ -812,7 +784,6 @@ $('csvBtn').addEventListener('click',function(){
 function viewCanvasLive(){
   if(currentView==='weft') return backCanvas;
   if(currentView==='woven') return wovenCanvas;
-  if(currentView==='field') return fieldCanvas;
   if(currentView==='remainder') return remainderCanvas;
   return frontCanvas;
 }
@@ -832,6 +803,13 @@ $('clothBtn').addEventListener('click',function(){
   c.drawImage(wovenCanvas,pad,pad+(S+gap)*2);
   cv.toBlob(function(b){ shareOrDownload(b,'discard-cloth-'+Date.now()+'.png'); });
 });
+function drawContain(ctx,src,x,y,w,h){
+  var sw=src.width, sh2=src.height;
+  var scale=Math.min(w/sw, h/sh2);
+  var dw=sw*scale, dh=sh2*scale;
+  var dx=x+(w-dw)/2, dy=y+(h-dh)/2;
+  ctx.drawImage(src,dx,dy,dw,dh);
+}
 function makeCard(){
   var dark=lum(rgbOf(bgColor))<128;
   var bg=bgColor, fg=dark?'#fff':'#000', mid=dark?'#767676':'#909090', hair=dark?'#222':'#e6e6e6';
@@ -840,7 +818,7 @@ function makeCard(){
   var c=cv.getContext('2d');
   c.fillStyle=bg; c.fillRect(0,0,W,H);
   var sh=760;
-  c.drawImage(viewCanvasLive(),M,300,W-M*2,sh);
+  drawContain(c,viewCanvasLive(),M,300,W-M*2,sh);
   c.strokeStyle=fg; c.lineWidth=2; c.strokeRect(M,300,W-M*2,sh);
   var cnt=counts();
   c.fillStyle=fg; c.font='400 40px "Helvetica Neue",Helvetica,Arial,sans-serif';
@@ -879,7 +857,7 @@ function entryCard(e,imgCanvas){
   var c=cv.getContext('2d');
   c.fillStyle=bg; c.fillRect(0,0,W,H);
   var sh=760;
-  c.drawImage(imgCanvas,M,300,W-M*2,sh);
+  drawContain(c,imgCanvas,M,300,W-M*2,sh);
   c.strokeStyle=fg; c.lineWidth=2; c.strokeRect(M,300,W-M*2,sh);
   c.fillStyle=fg; c.font='400 40px "Helvetica Neue",Helvetica,Arial,sans-serif';
   c.fillText('D I S C A R D',M,150);
